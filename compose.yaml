@@ -1,3 +1,5 @@
+name: coder
+
 services:
   coder:
     image: ${CODER_REPO}:${CODER_VERSION}
@@ -7,38 +9,33 @@ services:
     environment:
       CODER_PG_CONNECTION_URL: "postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@database/${POSTGRES_DB}?sslmode=disable"
       CODER_HTTP_ADDRESS: "0.0.0.0:80"
-      # Accessed over Tailscale, so this should be the tailnet
-      # IP/MagicDNS name of this host, e.g. http://coder-vm:PORT.
-      # No TLS needed here; Tailscale encrypts the transport.
       CODER_ACCESS_URL: "${CODER_ACCESS_URL}"
-    # If the coder user does not have write permissions on the docker
-    # socket, set DOCKER_GROUP_ID in .env to the host's docker group ID
-    # (run `getent group docker` on the host to find it).
+      CODER_EXTERNAL_AUTH_0_ID: "${CODER_EXTERNAL_AUTH_0_ID}"
+      CODER_EXTERNAL_AUTH_0_TYPE: "${CODER_EXTERNAL_AUTH_0_TYPE}"
+      CODER_EXTERNAL_AUTH_0_CLIENT_ID: "${CODER_EXTERNAL_AUTH_0_CLIENT_ID}"
+      CODER_EXTERNAL_AUTH_0_CLIENT_SECRET: "${CODER_EXTERNAL_AUTH_0_CLIENT_SECRET}"
+      CODER_EXTERNAL_AUTH_0_DISPLAY_NAME: "${CODER_EXTERNAL_AUTH_0_DISPLAY_NAME}"
     group_add:
-      - "${DOCKER_GROUP_ID}" # docker group on host
+      - "${DOCKER_GROUP_ID}"
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      # Run "docker volume rm coder-config_coder_home" to reset the dev tunnel url (https://abc.xyz.try.coder.app).
-      # This volume is not required in a production environment - you may safely remove it.
-      # Coder can recreate all the files it needs on restart.
-      - coder_home:/home/coder
     depends_on:
       database:
         condition: service_healthy
+  
   database:
     # Minimum supported version is 13.
     # More versions here: https://hub.docker.com/_/postgres
     image: "postgres:17"
     restart: unless-stopped
-    # Uncomment the next two lines to allow connections to the database from outside the server.
     #ports:
     #  - "5432:5432"
     environment:
-      POSTGRES_USER: ${POSTGRES_USER} # The PostgreSQL user (useful to connect to the database)
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD} # The PostgreSQL password (useful to connect to the database)
-      POSTGRES_DB: ${POSTGRES_DB} # The PostgreSQL default database (automatically created at first launch)
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     volumes:
-      - coder_data:/var/lib/postgresql/data # Use "docker volume rm coder-config_coder_data" to reset Coder
+      - pg_data:/var/lib/postgresql/data
     healthcheck:
       test:
         [
@@ -48,6 +45,6 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+
 volumes:
-  coder_data:
-  coder_home:
+  pg_data:
